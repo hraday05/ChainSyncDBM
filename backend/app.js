@@ -8,7 +8,7 @@ app.use(express.json());
 const transactionRoutes = require('./routes/transactionRoutes');
 
 // Routes use
-app.use('/api', transactionRoutes);
+app.use('/api/transactions', transactionRoutes);
 
 // Test route
 app.get('/', (req, res) => {

@@ -1,13 +1,13 @@
 const { generateHash } = require('../services/hashService');
-const Blockchain = require('../blockchain/chain');
 const Block = require('../blockchain/block');
+const blockchain = require('../blockchain/chain');
+const crypto = require('crypto');
 
-const blockchain = new Blockchain();
-
-exports.createTransaction = (req, res) => {
+const createTransaction = (req, res) => {
   const { sender, receiver, amount } = req.body;
 
   const transaction = {
+    id: Date.now(),
     sender,
     receiver,
     amount,
@@ -24,7 +24,7 @@ exports.createTransaction = (req, res) => {
     transactionHash
   );
 
-  blockchain.addBlock(newBlock);
+  blockchain.addBlock(transactionHash);
 
   res.json({
     message: "Transaction successful",
@@ -34,22 +34,44 @@ exports.createTransaction = (req, res) => {
   });
 };
 
-exports.verifyTransaction = (req, res) => {
-  const { transaction, hash } = req.body;
+const verifyTransaction = (req, res) => {
+    const { transaction, hash, block } = req.body;
 
-  const { generateHash } = require('../services/hashService');
+    // ✅ STEP 1: Verify Transaction Hash
+    const recalculatedTxHash = crypto
+        .createHash('sha256')
+        .update(JSON.stringify(transaction))
+        .digest('hex');
 
-  const recalculatedHash = generateHash(transaction);
+    const isTransactionValid = recalculatedTxHash === hash;
 
-  if (recalculatedHash === hash) {
-    return res.json({
-      status: "VALID",
-      message: "Transaction is safe"
-    });
-  } else {
-    return res.json({
-      status: "TAMPERED",
-      message: "Transaction has been modified!"
-    });
-  }
+    // ✅ STEP 2: Verify Block Hash
+    const recalculatedBlockHash = crypto
+        .createHash('sha256')
+        .update(
+            block.index +
+            block.timestamp +
+            block.transactionHash +
+            block.previousHash
+        )
+        .digest('hex');
+
+    const isBlockValid = recalculatedBlockHash === block.hash;
+
+    // ✅ FINAL RESULT
+    if (isTransactionValid && isBlockValid) {
+        return res.json({
+            message: "✅ Transaction & Block are VALID"
+        });
+    } else {
+        return res.json({
+            message: "❌ Data is TAMPERED",
+            details: {
+                transactionValid: isTransactionValid,
+                blockValid: isBlockValid
+            }
+        });
+    }
 };
+
+module.exports = { createTransaction, verifyTransaction };
