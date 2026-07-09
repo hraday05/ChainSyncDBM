@@ -1,0 +1,112 @@
+services:
+  # ============================================
+  # BACKEND API SERVER
+  # ============================================
+  chainsync-backend:
+    build: 
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: chainsync-backend
+    restart: always
+    ports:
+      - "5050:5050"   # External Port : Internal Port (Only port exposed to Host)
+    volumes:
+      - ./backend:/app/backend           # Live-mount backend code (no rebuild needed)
+      - /app/backend/node_modules        # Preserve node_modules from Docker build
+      - ./frontend:/app/frontend         # Live-mount frontend code
+    networks:
+      - chainsync-network
+    depends_on:
+      chainsync-india:
+        condition: service_healthy
+      chainsync-us:
+        condition: service_healthy
+      chainsync-eu:
+        condition: service_healthy
+
+  # ============================================
+  # INDIA REGION DATABASE (Primary)
+  # ============================================
+  chainsync-india:
+    image: mysql:8.0
+    container_name: chainsync-india
+    restart: always
+    command: --default-authentication-plugin=mysql_native_password
+    environment:
+      MYSQL_ROOT_PASSWORD: root1234
+      MYSQL_DATABASE: chainsync_india
+      MYSQL_USER: chainsync
+      MYSQL_PASSWORD: "1234"
+    ports:
+      - "3307:3306"
+    volumes:
+      - india_data:/var/lib/mysql
+      - ./docker/init-india.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - chainsync-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "chainsync", "-p1234"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============================================
+  # US REGION DATABASE
+  # ============================================
+  chainsync-us:
+    image: mysql:8.0
+    container_name: chainsync-us
+    restart: always
+    command: --default-authentication-plugin=mysql_native_password
+    environment:
+      MYSQL_ROOT_PASSWORD: root1234
+      MYSQL_DATABASE: chainsync_us
+      MYSQL_USER: chainsync
+      MYSQL_PASSWORD: "1234"
+    ports:
+      - "3308:3306"
+    volumes:
+      - us_data:/var/lib/mysql
+      - ./docker/init-us.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - chainsync-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "chainsync", "-p1234"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============================================
+  # EU REGION DATABASE
+  # ============================================
+  chainsync-eu:
+    image: mysql:8.0
+    container_name: chainsync-eu
+    restart: always
+    command: --default-authentication-plugin=mysql_native_password
+    environment:
+      MYSQL_ROOT_PASSWORD: root1234
+      MYSQL_DATABASE: chainsync_eu
+      MYSQL_USER: chainsync
+      MYSQL_PASSWORD: "1234"
+    ports:
+      - "3309:3306"
+    volumes:
+      - eu_data:/var/lib/mysql
+      - ./docker/init-eu.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - chainsync-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "chainsync", "-p1234"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  india_data:
+  us_data:
+  eu_data:
+
+networks:
+  chainsync-network:
+    driver: bridge
